@@ -1,199 +1,175 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:fyp/Components/or_divider.dart';
-import 'package:fyp/Model/Student/student.dart';
-import 'package:fyp/Components/header_widget.dart';
-import 'package:fyp/Components/theme_helper.dart';
-import 'package:fyp/Screens/LoginScreen/loading_page.dart';
-import 'package:fyp/Screens/Registration/registration_page.dart';
-import 'package:fyp/Screens/ResetPasswordScreen/ResetPassword_Page.dart';
-import 'package:fyp/constants.dart';
+import 'package:kep/Model/Student/student.dart';
+import 'package:kep/Screens/LoginScreen/loading_page.dart';
+import 'package:kep/Screens/Registration/registration_page.dart';
+import 'package:kep/Screens/ResetPasswordScreen/reset_password_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
-
+  const LoginPage({super.key});
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final double _headerHeight = 250;
-  String email = "";
-  String password = "";
+  final _form = GlobalKey<FormState>();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _busy = false;
+  bool _obscure = true;
+  String? _error;
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_busy || !_form.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final response = await Student().login(_email.text, _password.text);
+      if (!mounted) return;
+      if (response == true) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => LoadingPage(email: _email.text.trim()),
+          ),
+        );
+      } else {
+        setState(() => _error = response.toString());
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'Could not sign in. Check your connection and retry.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-                height: _headerHeight,
-                child: HeaderWidget(
-                  _headerHeight,
-                  false,
-                  Icon(Icons.login_rounded),
-                ),
-              ),
-              SafeArea(
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-                  margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Kankor',
-                        style: TextStyle(
-                            fontSize: 50,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor),
-                      ),
-                      SizedBox(height: size.height * 0.10),
-                      Column(
-                        children: [
-                          Container(
-                            child: TextField(
-                              onChanged: (value) {
-                                setState(() {
-                                  email = value;
-                                });
-                              },
-                              decoration: ThemeHelper().textInputDecoration(
-                                'Enter your Email',
-                              ),
-                            ),
-                            decoration:
-                                ThemeHelper().inputBoxDecorationShaddow(),
-                          ),
-                          SizedBox(height: size.height * 0.05),
-                          Container(
-                            child: TextField(
-                              onChanged: (value) {
-                                setState(() {
-                                  password = value;
-                                });
-                              },
-                              obscureText: true,
-                              decoration: ThemeHelper().textInputDecoration(
-                                'Enter your password',
-                              ),
-                            ),
-                            decoration:
-                                ThemeHelper().inputBoxDecorationShaddow(),
-                          ),
-                          SizedBox(height: size.height * 0.02),
-                          Container(
-                            margin: const EdgeInsets.fromLTRB(10, 0, 10, 20),
-                            alignment: Alignment.topRight,
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ResetPasswordPage(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                "Forgot your password?",
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            decoration:
-                                ThemeHelper().buttonBoxDecoration(context),
-                            child: ElevatedButton(
-                              style: ThemeHelper().buttonStyle(),
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(40, 10, 40, 10),
-                                child: Text(
-                                  'Sign In'.toUpperCase(),
-                                  style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white),
-                                ),
-                              ),
-                              onPressed: () async {
-                                Student student = Student();
-                                email = email.trim();
-                                var response =
-                                    await student.login(email, password);
-                                if (response == true) {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => LoadingPage(
-                                        email: email.trim(),
-                                      ),
-                                    ),
-                                  );
-                                } else {
-                                  showDialog<String>(
-                                    context: context,
-                                    builder: (BuildContext context) =>
-                                        AlertDialog(
-                                      title: const Text('Information!'),
-                                      content: Text(response),
-                                      actions: <Widget>[
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: const Text('OK'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ),
-                          OrDivider(),
-                          Container(
-                            margin: const EdgeInsets.fromLTRB(10, 0, 10, 20),
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  const TextSpan(
-                                      text: "Don\'t have an account? "),
-                                  TextSpan(
-                                    text: 'Create',
-                                    recognizer: TapGestureRecognizer()
-                                      ..onTap = () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                RegistrationPage(),
-                                          ),
-                                        );
-                                      },
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Form(
+              key: _form,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    Icons.school_rounded,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Welcome to KEP',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Build your confidence for the Kankor exam.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    controller: _email,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: (value) =>
+                        value == null ||
+                            !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                .hasMatch(value.trim())
+                        ? 'Enter a valid email address.'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _password,
+                    enabled: !_busy,
+                    obscureText: _obscure,
+                    autofillHints: const [AutofillHints.password],
+                    onFieldSubmitted: (_) => _login(),
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                        tooltip: _obscure ? 'Show password' : 'Hide password',
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                      ),
+                    ),
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Enter your password.'
+                        : null,
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ResetPasswordPage(),
+                              ),
+                            ),
+                      child: const Text('Forgot password?'),
+                    ),
+                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  FilledButton(
+                    onPressed: _busy ? null : _login,
+                    child: Text(_busy ? 'Signing in…' : 'Sign in'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => const RegistrationPage(),
+                            ),
+                          ),
+                    child: const Text('Create a student account'),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

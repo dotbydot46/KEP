@@ -1,304 +1,236 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_countdown_timer/flutter_countdown_timer.dart';
-import 'package:fyp/Components/option_button.dart';
-import 'package:fyp/Model/Question/question.dart';
-import 'package:fyp/Screens/ResultScreen/result_screen.dart';
-import 'package:fyp/constants.dart';
+import 'package:kep/Model/Question/question.dart';
+import 'package:kep/Model/Quiz/quiz_session.dart';
+import 'package:kep/Screens/ResultScreen/result_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   final List<Question> quizQuestions;
   final int time;
   final String language;
   final String subject;
-  QuizScreen({
+  final DateTime Function()? now;
+  const QuizScreen({
+    super.key,
     required this.quizQuestions,
     required this.time,
     required this.language,
     required this.subject,
+    this.now,
   });
   @override
-  _QuizScreenState createState() => _QuizScreenState();
+  State<QuizScreen> createState() => _QuizScreenState();
 }
 
-enum Option { first, second, third, fourth }
-
-class _QuizScreenState extends State<QuizScreen> {
-  int index = 0;
-  int correctAns = 0;
-  int falseAns = 0;
-  String selectedOption = "";
-  bool visible = false;
-  Option? option;
-  int endTime = 0;
-  TextAlign align = TextAlign.start;
-  Map<String, int> correctAnswers = {
-    'Physics': 0,
-    'Chemistry': 0,
-    'Biology': 0,
-    'Maths': 0,
-    'Geography': 0,
-    'General Knowledge': 0,
-    'Geology': 0,
-    'History': 0,
-    'IslamicStudies': 0,
-    'Pashto': 0,
-    'Dari': 0
-  };
-
-  Map<String, int> wrongAnswers = {
-    'Physics': 0,
-    'Chemistry': 0,
-    'Biology': 0,
-    'Maths': 0,
-    'Geography': 0,
-    'General Knowledge': 0,
-    'Geology': 0,
-    'History': 0,
-    'IslamicStudies': 0,
-    'Pashto': 0,
-    'Dari': 0
-  };
-
-  void setAlign() {
-    if (widget.language != 'en') {
-      setState(() {
-        align = TextAlign.end;
-      });
+class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
+  late final QuizSession _session;
+  late final DateTime _deadline;
+  Timer? _timer;
+  int? _selected;
+  int _remaining = 0;
+  bool _finishing = false;
+  bool _exitDialogOpen = false;
+  DateTime get _now => widget.now?.call() ?? DateTime.now();
+  TextAlign get _align =>
+      widget.language == 'en' ? TextAlign.start : TextAlign.end;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _session = QuizSession(widget.quizQuestions);
+    _remaining = widget.time;
+    _deadline = _now.add(Duration(seconds: widget.time));
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    if (widget.quizQuestions.isEmpty || widget.time <= 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _finish());
     }
   }
 
   @override
-  void initState() {
-    super.initState();
-    endTime = DateTime.now().millisecondsSinceEpoch + 1000 * widget.time;
-    setAlign();
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _tick();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  void _tick() {
+    if (!mounted || _finishing) return;
+    final millis = _deadline.difference(_now).inMilliseconds;
+    final remaining = ((millis + 999) ~/ 1000).clamp(0, widget.time);
+    if (remaining == 0) {
+      _finish();
+    } else {
+      setState(() => _remaining = remaining);
+    }
+  }
+
+  void _next({bool skip = false}) {
+    if (_finishing || (!skip && _selected == null)) return;
+    if (!_now.isBefore(_deadline)) {
+      _finish();
+      return;
+    }
+    _session.submit(skip ? null : _selected);
+    if (_session.finished) {
+      _finish();
+    } else {
+      setState(() => _selected = null);
+    }
+  }
+
+  void _finish() {
+    if (!mounted || _finishing) return;
+    _finishing = true;
+    _timer?.cancel();
+    if (_exitDialogOpen) {
+      _exitDialogOpen = false;
+      Navigator.of(context).pop();
+    }
+    // A selected answer is committed at expiry, exactly once.
+    if (!_session.finished && _selected != null) _session.submit(_selected);
+    _session.finished = true;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => ResultPage(
+          trueAns: _session.correct,
+          falseAns: _session.wrong,
+          totalQuestions: widget.quizQuestions.length,
+          quizQuestion: widget.quizQuestions,
+          align: _align,
+          correctAnswers: _session.counts(correctAnswers: true),
+          wrongAnswers: _session.counts(correctAnswers: false),
+          selectedAnswers: List.of(_session.answers),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmExit() async {
+    if (_exitDialogOpen || _finishing) return;
+    _exitDialogOpen = true;
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave this quiz?'),
+        content: const Text('Your current attempt will not be saved.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep studying'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+    _exitDialogOpen = false;
+    if (!mounted || _finishing || leave != true) return;
+    _finishing = true;
+    _timer?.cancel();
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    return SafeArea(
+    if (widget.quizQuestions.isEmpty) {
+      return const Scaffold(
+        body: Center(child: Text('No questions available.')),
+      );
+    }
+    final question = widget.quizQuestions[_session.index];
+    return PopScope(
+      canPop: _finishing,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _confirmExit();
+      },
       child: Scaffold(
         appBar: AppBar(
-          leading: BackButton(
-            onPressed: () {
-              showDialog<String>(
-                context: context,
-                builder: (BuildContext context) => AlertDialog(
-                  title: const Text('Exit'),
-                  content:
-                      const Text('Are you sure you want to quit the quiz?'),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('No'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Yes'),
-                    ),
-                  ],
-                ),
-              );
-            },
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Leave quiz',
+            onPressed: _confirmExit,
           ),
-          backgroundColor: primaryColor,
-          centerTitle: true,
-          title: CountdownTimer(
-            endTime: endTime,
-            onEnd: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ResultPage(
-                    trueAns: correctAns,
-                    falseAns: falseAns,
-                    totalQuestions: widget.quizQuestions.length,
-                    quizQuestion: widget.quizQuestions,
-                    align: align,
-                    correctAnswers: correctAnswers,
-                    wrongAnswers: wrongAnswers,
-                  ),
-                ),
-              );
-            },
+          title: Text(
+            '${_remaining ~/ 60}:${(_remaining % 60).toString().padLeft(2, '0')} remaining',
           ),
         ),
-        body: SingleChildScrollView(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: ListView(
+              padding: const EdgeInsets.all(24),
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 25, horizontal: 30),
-                  width: double.infinity,
-                  height: 250,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                        bottomRight: Radius.circular(800),
-                        bottomLeft: Radius.circular(800)),
-                    color: primaryColor,
-                  ),
-                  child: Text(
-                    widget.quizQuestions[index].title.toString(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                    ),
-                  ),
+                Text(
+                  'Question ${_session.index + 1} of ${widget.quizQuestions.length}',
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
-                const SizedBox(
-                  height: 25,
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: (_session.index + 1) / widget.quizQuestions.length,
                 ),
-                OptionButton(
-                  color:
-                      option == Option.first ? primaryColor : primaryLightColor,
-                  option: widget.quizQuestions[index].option1.toString(),
-                  onTap: () {
-                    setState(() {
-                      option = Option.first;
-                      selectedOption =
-                          widget.quizQuestions[index].option1.toString();
-                      visible = true;
-                    });
-                  },
-                ),
-                const SizedBox(
-                  height: 15,
-                ),
-                OptionButton(
-                    color: option == Option.second
-                        ? primaryColor
-                        : primaryLightColor,
-                    option: widget.quizQuestions[index].option2.toString(),
-                    onTap: () {
-                      setState(() {
-                        option = Option.second;
-                        selectedOption =
-                            widget.quizQuestions[index].option2.toString();
-                        visible = true;
-                      });
-                    }),
-                const SizedBox(
-                  height: 15,
-                ),
-                OptionButton(
-                    color: option == Option.third
-                        ? primaryColor
-                        : primaryLightColor,
-                    option: widget.quizQuestions[index].option3.toString(),
-                    onTap: () {
-                      setState(() {
-                        option = Option.third;
-                        selectedOption =
-                            widget.quizQuestions[index].option3.toString();
-                        visible = true;
-                      });
-                    }),
-                const SizedBox(
-                  height: 15,
-                ),
-                OptionButton(
-                    color: option == Option.fourth
-                        ? primaryColor
-                        : primaryLightColor,
-                    option: widget.quizQuestions[index].option4.toString(),
-                    onTap: () {
-                      setState(() {
-                        option = Option.fourth;
-                        selectedOption =
-                            widget.quizQuestions[index].option4.toString();
-                        visible = true;
-                      });
-                    }),
-                const SizedBox(
-                  height: 20,
-                ),
-                Visibility(
-                  visible: visible,
-                  child: GestureDetector(
-                    onTap: () {
-                      if (index == widget.quizQuestions.length - 1) {
-                        String subject = widget.quizQuestions[index].subject;
-
-                        if (selectedOption ==
-                            widget.quizQuestions[index].answer.toString()) {
-                          correctAns++;
-                          var previousValue = correctAnswers[subject];
-                          if (previousValue != null) {
-                            correctAnswers[subject] = previousValue + 1;
-                          }
-                        } else {
-                          falseAns++;
-                          var previousValue = wrongAnswers[subject];
-                          if (previousValue != null) {
-                            wrongAnswers[subject] = previousValue + 1;
-                          }
-                        }
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ResultPage(
-                              trueAns: correctAns,
-                              falseAns: falseAns,
-                              totalQuestions: widget.quizQuestions.length,
-                              quizQuestion: widget.quizQuestions,
-                              align: align,
-                              correctAnswers: correctAnswers,
-                              wrongAnswers: wrongAnswers,
+                const SizedBox(height: 24),
+                Directionality(
+                  textDirection: widget.language == 'en'
+                      ? TextDirection.ltr
+                      : TextDirection.rtl,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        question.title,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 24),
+                      for (var i = 0; i < 4; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OutlinedButton(
+                            onPressed: () => setState(() => _selected = i),
+                            style: OutlinedButton.styleFrom(
+                              alignment: AlignmentDirectional.centerStart,
+                              padding: const EdgeInsets.all(20),
+                              backgroundColor: _selected == i
+                                  ? Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _selected == i
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_unchecked,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(child: Text(question.options[i])),
+                              ],
                             ),
                           ),
-                        );
-                      }
-                      if (index < widget.quizQuestions.length - 1) {
-                        String subject = widget.quizQuestions[index].subject;
-                        if (selectedOption ==
-                            widget.quizQuestions[index].answer.toString()) {
-                          correctAns++;
-                          var previousValue = correctAnswers[subject];
-                          if (previousValue != null) {
-                            correctAnswers[subject] = previousValue + 1;
-                          }
-                        } else {
-                          falseAns++;
-                          var previousValue = wrongAnswers[subject];
-                          if (previousValue != null) {
-                            wrongAnswers[subject] = previousValue + 1;
-                          }
-                        }
-                        setState(() {
-                          index++;
-                          visible = false;
-                          option = null;
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 20),
-                      decoration: BoxDecoration(
-                          color: primaryColor,
-                          borderRadius: BorderRadius.circular(25)),
-                      child: const Text(
-                        "Next",
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontFamily: "Courgette",
-                          color: Colors.white,
                         ),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(
-                  height: 15,
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _selected == null ? null : () => _next(),
+                  child: Text(
+                    _session.index == widget.quizQuestions.length - 1
+                        ? 'Finish quiz'
+                        : 'Next question',
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _next(skip: true),
+                  child: const Text('Skip question'),
                 ),
               ],
             ),
