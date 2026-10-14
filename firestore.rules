@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    match /Students/{uid} {
+      // The email-constrained read supports the non-destructive legacy migration.
+      allow read: if signedIn() && (request.auth.uid == uid ||
+        resource.data.email == request.auth.token.email);
+      allow create, update: if signedIn() && request.auth.uid == uid &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.keys().hasOnly(['email', 'firstName', 'lastName',
+          'favoriteSubject', 'province', 'profilePic', 'tazkiraNumber']) &&
+        request.resource.data.firstName is string && request.resource.data.lastName is string &&
+        request.resource.data.province is string && request.resource.data.favoriteSubject is string &&
+        request.resource.data.profilePic is string && request.resource.data.tazkiraNumber is string;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+    match /questions/{question} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+  }
+}

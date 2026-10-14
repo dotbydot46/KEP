@@ -1,248 +1,55 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:fyp/Model/Student/student.dart';
-import 'package:fyp/Screens/HomeScreen/HomePage.dart';
-import 'package:fyp/constants.dart';
-import 'package:fyp/Components/subject_card_widget.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
-import 'package:fyp/Screens/BookViewer/bookviewer.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:fyp/Components/pdf_reader.dart';
-import 'package:fyp/Model/Book/book.dart';
-import 'package:fyp/constants.dart';
-import 'package:fyp/Model/Book/book.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-class BooksPage extends StatefulWidget {
-  const BooksPage({Key? key}) : super(key: key);
+import 'package:kep/Components/pdf_reader.dart';
+import 'package:kep/Components/storage_library.dart';
 
+class BooksPage extends StatelessWidget {
+  const BooksPage({super.key});
   @override
-  State<BooksPage> createState() => _BooksPageState();
-}
-
-class _BooksPageState extends State<BooksPage> {
-  Book book = Book();
-  late String language;
-  Student student = Student();
-  late Future<ListResult> futureFiles;
-  @override
-  void initState() {
-    super.initState();
-    futureFiles = book.listBooks();
-  }
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          leading: BackButton(
-            onPressed: (){
-              Navigator.pop(context);
-            },
-          ),
-          backgroundColor: primaryColor,
-          title: Text(
-            'Select a Subject',
-            style: TextStyle(
-                fontFamily: 'courgette'
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Study books')),
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text('Bundled books • available offline'),
+        ),
+        for (final book in {
+          'Grade 10 • Biology': 'assets/pdf/G10_Biology.pdf',
+          'Grade 11 • Maths': 'assets/pdf/G11_Maths.pdf',
+          'Grade 12 • Chemistry': 'assets/pdf/G12_Chemestry.pdf',
+        }.entries)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.menu_book),
+              title: Text(book.key),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      PDFReader(url: book.value, name: book.key, asset: true),
+                ),
+              ),
             ),
-
           ),
-          centerTitle: true,
-        ),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Maths',
-                      progress: 67,
-                      onTap: () {
-                       Navigator.pushReplacement(context,
-                       MaterialPageRoute(builder: (context)=>BookViewer(
-                         subject: 'Maths',
-                         bookPath: 'assets/pdf/G11_Maths.pdf',
-                       )));
-                      },
-                      image: 'assets/images/maths.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                        progress: 45,
-                        title: 'Physics',
-                        onTap: () {
-                          Navigator.pushReplacement(context,
-                              MaterialPageRoute(builder: (context)=>BookViewer(
-                                subject: 'Physics',
-                                bookPath: 'assets/pdf/G12_Chemestry.pdf',
-                              )));
-                        },
-                        image: 'assets/images/physics.jpg',
-                      ))
-                ],
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.cloud_outlined),
+            title: const Text('Online library'),
+            subtitle: const Text('Additional books from KEP'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    const StorageLibrary(path: 'books', title: 'Online books'),
               ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Geography',
-                      progress: 67,
-                      onTap: () {
-
-                        Navigator.pushReplacement(context,
-                            MaterialPageRoute(builder: (context)=>BookViewer(
-                              subject: 'Geography',
-                              bookPath: 'assets/pdf/G10_Biology.pdf',
-                            )));
-
-                      },
-                      image: 'assets/images/geography.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                        progress: 45,
-                        title: 'Biology',
-                        onTap: () {
-                          Navigator.pushReplacement(context,
-                              MaterialPageRoute(builder: (context)=>BookViewer(
-                                subject: 'Biology',
-                                bookPath: 'assets/pdf/G10_Biology.pdf',
-                              )));
-                        },
-                        image: 'assets/images/biology.jpg',
-                      ))
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Chemistry',
-                      progress: 67,
-                      onTap: () {
-
-                        Navigator.pushReplacement(context,
-                            MaterialPageRoute(builder: (context)=>BookViewer(
-                              subject: 'Chemistry',
-                              bookPath: 'assets/pdf/G10_Biology.pdf',
-                            )));
-
-                      },
-                      image: 'assets/images/chemistry.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                        progress: 45,
-                        title: 'General Knowledge',
-                        onTap: () {
-
-                          Navigator.pushReplacement(context,
-                              MaterialPageRoute(builder: (context)=>BookViewer(
-                                subject: 'General Knowledge',
-                                bookPath: 'assets/pdf/G10_Biology.pdf',
-                              )));
-                        },
-                        image: 'assets/images/GeneralKnowledge.jpg',
-                      ))
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Geology',
-                      progress: 67,
-                      onTap: () {
-                        Navigator.pushReplacement(context,
-                            MaterialPageRoute(builder: (context)=>BookViewer(
-                              subject: 'Geology',
-                              bookPath: 'assets/pdf/G10_Biology.pdf',
-                            )));
-                      },
-                      image: 'assets/images/Geology.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                        progress: 45,
-                        title: 'History',
-                        onTap: () {
-
-                          Navigator.pushReplacement(context,
-                              MaterialPageRoute(builder: (context)=>BookViewer(
-                                subject: 'History',
-                                bookPath: 'assets/pdf/G10_Biology.pdf',
-                              )));
-                        },
-                        image: 'assets/images/History.jpg',
-                      ))
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Islamic Studies',
-                      progress: 67,
-                      onTap: () {
-
-                        Navigator.pushReplacement(context,
-                            MaterialPageRoute(builder: (context)=>BookViewer(
-                              subject: 'Islamic Studies',
-                              bookPath: 'assets/pdf/G10_Biology.pdf',
-                            )));
-                      },
-                      image: 'assets/images/Islamic.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                        progress: 45,
-                        title: 'Pashto',
-                        onTap: () {
-
-                          Navigator.pushReplacement(context,
-                              MaterialPageRoute(builder: (context)=>BookViewer(
-                                subject: 'Pashto',
-                                bookPath: 'assets/pdf/G10_Biology.pdf',
-                              )));
-                        },
-                        image: 'assets/images/pashto.jpg',
-                      )),
-
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Dari',
-                      progress: 67,
-                      onTap: () {
-
-                        Navigator.pushReplacement(context,
-                            MaterialPageRoute(builder: (context)=>BookViewer(
-                              subject: 'Dari',
-                              bookPath: 'assets/pdf/G10_Biology.pdf',
-                            )));
-                      },
-                      image: 'assets/images/dari.jpg',
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(),
-                  ),
-                ],
-              )
-            ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }

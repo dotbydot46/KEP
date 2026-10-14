@@ -1,81 +1,69 @@
 import 'package:flutter/material.dart';
-import 'package:fyp/constants.dart';
 import 'package:translator/translator.dart';
 
 class KankorGuide extends StatefulWidget {
   final String language;
-  KankorGuide({required this.language});
-
+  const KankorGuide({super.key, required this.language});
   @override
   State<KankorGuide> createState() => _KankorGuideState();
 }
 
 class _KankorGuideState extends State<KankorGuide> {
-  final translator = GoogleTranslator();
-  String guide = "";
-  TextAlign align = TextAlign.start;
-  void convertData() async {
-    String text =
-        "Kankor is the nationwide tertiary entrance exam in Afghanistan. Passing the entrance exam to a university is a major step in one's life. Since the score on the Kankor assessment test determines the student's sequence of courses, it is highly recommended to do some test preparation so that the score and consequent placement are in the student's best interest. However, due to poverty and lack of public awareness, Afghanistan severely lacks sufficient resource for providing entrance test preparation facilities. Keeping the aforementioned in mind, mobile-base preparation systems offer greater flexibility than the conventional ways, as they can be accessed anywhere, anytime. In addition to using easily found practice materials, the online text preparation system is the most efficient, dynamic and relatively cheap method to prepare students for the qualifying test. In this paper, we propose the design of a mobile-based test preparation environment, known as ‘KEP or Kankor Exam preparation App’ to give students the tools to help them pass the university entrance exam on the first try.";
-    var title =
-        await translator.translate(text, from: 'en', to: widget.language);
+  static const _english =
+      'Prepare a little every day.\n\n'
+      'Start with a subject quiz, review the answers, and return to the topics you found difficult. '
+      'Use the bundled books for offline study and the online library for more materials.\n\n'
+      'When you are ready, try a timed mock exam. KEP practice scores are for learning; '
+      'they do not predict official admission outcomes.\n\n'
+      'For exam dates, eligibility, registration and the current syllabus, consult the official exam authority.';
+  String _guide = _english;
+  bool _loading = false;
+  bool _failed = false;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.language != 'en') _translate();
+  }
+
+  Future<void> _translate() async {
     setState(() {
-      guide = title.toString();
+      _loading = true;
+      _failed = false;
     });
-    if (widget.language != 'en') {
-      setState(() {
-        align = TextAlign.end;
-      });
+    try {
+      final result = await GoogleTranslator()
+          .translate(_english, from: 'en', to: widget.language)
+          .timeout(const Duration(seconds: 15));
+      if (mounted) setState(() => _guide = result.text);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
-  void initState() {
-    super.initState();
-    convertData();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          backgroundColor: primaryColor,
-          title: const Text(
-            'Kankor Guide',
-            style: TextStyle(
-              color: Colors.white,
-              fontFamily: "Courgette",
-            ),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Study guide')),
+    body: ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        if (_loading) const LinearProgressIndicator(),
+        if (_failed) ...[
+          const Text('Translation is unavailable. Showing the English guide.'),
+          TextButton(
+            onPressed: _translate,
+            child: const Text('Retry translation'),
           ),
+        ],
+        const SizedBox(height: 16),
+        Directionality(
+          textDirection: _guide == _english
+              ? TextDirection.ltr
+              : TextDirection.rtl,
+          child: Text(_guide, style: Theme.of(context).textTheme.bodyLarge),
         ),
-        body: Center(
-          child: Container(
-            height: size.height * 0.8,
-            margin: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(50), color: Colors.white),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
-                child: Text(
-                  guide,
-                  textAlign: align,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontFamily: "Courgette",
-                    fontWeight: FontWeight.w500,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }

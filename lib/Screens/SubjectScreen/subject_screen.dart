@@ -1,265 +1,58 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:fyp/Components/subject_card_widget.dart';
-import 'package:fyp/Screens/QuizScreen/quiz_splash_screen.dart';
-import 'package:fyp/constants.dart';
+import 'package:kep/Screens/QuizScreen/quiz_splash_screen.dart';
 
 class SubjectsScreen extends StatelessWidget {
   final String language;
-  SubjectsScreen({required this.language});
+  const SubjectsScreen({super.key, required this.language});
+  static const subjects = [
+    'Maths',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'Geography',
+    'General Knowledge',
+    'Geology',
+    'History',
+    'IslamicStudies',
+    'Pashto',
+    'Dari',
+  ];
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: primaryColor,
-          title: const Text(
-            'Select a Subject',
-            style: TextStyle(
-              fontFamily: "Courgette",
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Subject practice')),
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: Text('Up to 5 questions · 5 minutes per quiz'),
             ),
-          ),
-          centerTitle: true,
-        ),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Mathematics',
-                      progress: 67,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizSplashScreen(
-                              language: language,
-                              subject: 'Maths',
-                              time: 300,
-                            ),
-                          ),
-                        );
-                      },
-                      image: 'assets/images/maths.jpg',
+            for (final subject in subjects)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.auto_stories_outlined),
+                  title: Text(
+                    subject == 'IslamicStudies' ? 'Islamic studies' : subject,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => QuizSplashScreen(
+                        subject: subject,
+                        language: language,
+                        time: 300,
+                      ),
                     ),
                   ),
-                  Expanded(
-                      child: SubjectCard(
-                    progress: 45,
-                    title: 'Physics',
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QuizSplashScreen(
-                            language: language,
-                            subject: 'Physics',
-                            time: 300,
-                          ),
-                        ),
-                      );
-                    },
-                    image: 'assets/images/physics.jpg',
-                  ))
-                ],
+                ),
               ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Geography',
-                      progress: 67,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizSplashScreen(
-                              language: language,
-                              subject: 'Geography',
-                              time: 300,
-                            ),
-                          ),
-                        );
-                      },
-                      image: 'assets/images/geography.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                    progress: 45,
-                    title: 'Biology',
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QuizSplashScreen(
-                            language: language,
-                            subject: 'Biology',
-                            time: 300,
-                          ),
-                        ),
-                      );
-                    },
-                    image: 'assets/images/biology.jpg',
-                  ))
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Chemistry',
-                      progress: 67,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizSplashScreen(
-                              language: language,
-                              subject: 'Chemistry',
-                              time: 300,
-                            ),
-                          ),
-                        );
-                      },
-                      image: 'assets/images/chemistry.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                    progress: 45,
-                    title: 'General Knowl...',
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QuizSplashScreen(
-                            language: language,
-                            subject: 'General Knowledge',
-                            time: 300,
-                          ),
-                        ),
-                      );
-                    },
-                    image: 'assets/images/GeneralKnowledge.jpg',
-                  ))
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Geology',
-                      progress: 67,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizSplashScreen(
-                              language: language,
-                              subject: 'Geology',
-                              time: 300,
-                            ),
-                          ),
-                        );
-                      },
-                      image: 'assets/images/Geology.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                    progress: 45,
-                    title: 'History',
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QuizSplashScreen(
-                            language: language,
-                            subject: 'History',
-                            time: 300,
-                          ),
-                        ),
-                      );
-                    },
-                    image: 'assets/images/History.jpg',
-                  ))
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Islamic Studies',
-                      progress: 67,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizSplashScreen(
-                              language: language,
-                              subject: 'IslamicStudies',
-                              time: 300,
-                            ),
-                          ),
-                        );
-                      },
-                      image: 'assets/images/Islamic.jpg',
-                    ),
-                  ),
-                  Expanded(
-                      child: SubjectCard(
-                    progress: 45,
-                    title: 'Pashto',
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QuizSplashScreen(
-                            language: language,
-                            subject: 'Pashto',
-                            time: 300,
-                          ),
-                        ),
-                      );
-                    },
-                    image: 'assets/images/pashto.jpg',
-                  ))
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SubjectCard(
-                      title: 'Dari',
-                      progress: 67,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizSplashScreen(
-                              language: language,
-                              subject: 'Dari',
-                              time: 300,
-                            ),
-                          ),
-                        );
-                      },
-                      image: 'assets/images/dari.jpg',
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }

@@ -1,84 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:fyp/Model/Question/question.dart';
-import 'package:fyp/constants.dart';
+import 'package:kep/Model/Question/question.dart';
 
-class AnswerPage extends StatefulWidget {
+class AnswerPage extends StatelessWidget {
   final List<Question> quizQuestions;
   final TextAlign align;
-  AnswerPage({
+  final List<int?>? selectedAnswers;
+  const AnswerPage({
+    super.key,
     required this.quizQuestions,
     required this.align,
+    this.selectedAnswers,
   });
-
   @override
-  State<AnswerPage> createState() => _AnswerPageState();
-}
-
-class _AnswerPageState extends State<AnswerPage> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          leading: BackButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          centerTitle: true,
-          backgroundColor: primaryColor,
-          title: const Text(
-            'Answers',
-            style: TextStyle(
-              color: Colors.white,
-              fontFamily: "Courgette",
-            ),
-          ),
-        ),
-        body: ListView.builder(
-          itemCount: widget.quizQuestions.length,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(10, 2, 10, 2),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: primaryColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: ListTile(
-                  title: Text(
-                    widget.quizQuestions[index].title,
-                    textAlign: widget.align,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w400,
-                      fontSize: 20,
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Answer review')),
+    body: Directionality(
+      textDirection: align == TextAlign.end
+          ? TextDirection.rtl
+          : TextDirection.ltr,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: quizQuestions.length,
+        itemBuilder: (context, index) {
+          final question = quizQuestions[index];
+          final selected =
+              selectedAnswers != null && index < selectedAnswers!.length
+              ? selectedAnswers![index]
+              : null;
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${index + 1}. ${question.title}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your answer: ${selected == null ? 'Skipped' : question.options[selected]}',
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Correct answer: ${question.answer}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      widget.quizQuestions[index].answer,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ),
-                ),
+                ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
-    );
-  }
+    ),
+  );
 }

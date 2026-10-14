@@ -1,127 +1,85 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:fyp/Model/Quiz/quiz.dart';
-import 'package:fyp/Screens/QuizScreen/quiz_screen.dart';
-import 'package:fyp/constants.dart';
-import 'package:percent_indicator/percent_indicator.dart';
+import 'package:kep/Model/Quiz/quiz.dart';
+import 'package:kep/Screens/QuizScreen/quiz_screen.dart';
 
 class QuizSplashScreen extends StatefulWidget {
   final String subject;
   final String language;
   final int time;
-  QuizSplashScreen(
-      {required this.subject, required this.language, required this.time});
+  const QuizSplashScreen({
+    super.key,
+    required this.subject,
+    required this.language,
+    required this.time,
+  });
   @override
-  _QuizSplashScreenState createState() => _QuizSplashScreenState();
+  State<QuizSplashScreen> createState() => _QuizSplashScreenState();
 }
 
 class _QuizSplashScreenState extends State<QuizSplashScreen> {
-  var data;
-  Widget page = Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        SpinKitSpinningLines(color: primaryColor),
-        const SizedBox(height: 15),
-        Text(
-          'Preparing quiz',
-          style: TextStyle(
-            fontFamily: 'Courgette',
-            fontSize: 20,
-            color: primaryColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'This may take a while',
-          style: TextStyle(
-            fontFamily: 'Courgette',
-            fontSize: 20,
-            color: primaryColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    ),
-  );
+  String? _error;
   @override
   void initState() {
     super.initState();
-    getData();
+    _load();
   }
 
-  Widget PageBody() {
-    Size size = MediaQuery.of(context).size;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Text(
-            'Daily Quiz',
-            style: TextStyle(
-                fontFamily: 'Courgette',
-                fontSize: size.width * 0.15,
-                color: primaryColor,
-                fontWeight: FontWeight.bold),
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final questions = await Quiz().getQuiz(widget.subject, widget.language);
+      if (!mounted) return;
+      if (questions.isEmpty) {
+        setState(
+          () => _error = 'No questions are available for this subject yet.',
+        );
+        return;
+      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => QuizScreen(
+            quizQuestions: questions,
+            time: widget.time,
+            language: widget.language,
+            subject: widget.subject,
           ),
-          SizedBox(
-            height: size.height * 0.05,
-          ),
-          SvgPicture.asset(
-            'assets/svg/paper.svg',
-            width: size.width * 0.8,
-          ),
-          SizedBox(
-            height: size.height * 0.08,
-          ),
-          Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: LinearPercentIndicator(
-              width: MediaQuery.of(context).size.width - 50,
-              animation: true,
-              lineHeight: 20.0,
-              animationDuration: 5000,
-              percent: 1.0,
-              linearStrokeCap: LinearStrokeCap.roundAll,
-              progressColor: primaryColor,
-              onAnimationEnd: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => QuizScreen(
-                      quizQuestions: data,
-                      time: widget.time,
-                      language: widget.language,
-                      subject: widget.subject,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void getData() async {
-    Quiz quiz = Quiz();
-    Future<List> _futureOfList = quiz.getQuiz(widget.subject, widget.language);
-    data = await _futureOfList;
-    if (data != null) {
-      setState(() {
-        page = PageBody();
-      });
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Could not prepare this quiz. Check your connection and retry.',
+        );
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    return SafeArea(child: Scaffold(body: page));
-  }
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Prepare quiz')),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_error == null) ...[
+              const CircularProgressIndicator(),
+              const SizedBox(height: 20),
+              const Text('Preparing your questions…'),
+            ] else ...[
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: _load, child: const Text('Retry')),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Back'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 }
